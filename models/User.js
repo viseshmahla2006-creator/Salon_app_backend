@@ -7,6 +7,11 @@ const userSchema = new mongoose.Schema(
     phone: { type: String, required: true },
     password: { type: String, required: true }, // hashed
     role: { type: String, enum: ["customer", "owner"], required: true },
+
+    // Email verification
+    isVerified: { type: Boolean, default: false },
+    otp: { type: String },
+    otpExpiresAt: { type: Date },
   },
   { timestamps: true }
 );
