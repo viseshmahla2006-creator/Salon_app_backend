@@ -5,15 +5,16 @@ const { createOrder, verifySignature } = require("../utils/razorpay");
 
 const router = express.Router();
 const SUBSCRIPTION_FEE = 199;
+const FREE_COUPON = "TMKC";
 
 // OWNER: create or update salon (photo, services, prices)
 router.post("/", protect, ownerOnly, async (req, res) => {
   try {
-    const { shopName, city, area, address, photoUrl, services, openTime, closeTime } = req.body;
+    const { shopName, city, area, address, photoUrl, galleryPhotos, services, openTime, closeTime } = req.body;
 
     let salon = await Salon.findOne({ owner: req.user.id });
     if (salon) {
-      Object.assign(salon, { shopName, city, area, address, photoUrl, services, openTime, closeTime });
+      Object.assign(salon, { shopName, city, area, address, photoUrl, galleryPhotos, services, openTime, closeTime });
       await salon.save();
     } else {
       salon = await Salon.create({
@@ -23,6 +24,7 @@ router.post("/", protect, ownerOnly, async (req, res) => {
         area,
         address,
         photoUrl,
+        galleryPhotos,
         services,
         openTime,
         closeTime,
@@ -61,6 +63,25 @@ router.get("/:id", async (req, res) => {
 
 router.post("/subscribe/create-order", protect, ownerOnly, async (req, res) => {
   try {
+    const couponCode = (req.body.couponCode || "").trim().toUpperCase();
+    if (couponCode === FREE_COUPON) {
+      const salon = await Salon.findOne({ owner: req.user.id });
+      if (!salon) return res.status(404).json({ message: "Please create your salon first" });
+
+      const now = new Date();
+      const currentExpiry = salon.subscriptionExpiresAt && salon.subscriptionExpiresAt > now
+        ? salon.subscriptionExpiresAt
+        : now;
+      const newExpiry = new Date(currentExpiry);
+      newExpiry.setDate(newExpiry.getDate() + 30);
+
+      salon.subscriptionActive = true;
+      salon.subscriptionExpiresAt = newExpiry;
+      await salon.save();
+
+      return res.json({ free: true, message: "Subscription activated for free with your coupon!", salon });
+    }
+
     const order = await createOrder(SUBSCRIPTION_FEE, `sub_${req.user.id}_${Date.now()}`);
     res.json({ order, key: process.env.RAZORPAY_KEY_ID });
   } catch (err) {
