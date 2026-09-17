@@ -6,6 +6,7 @@ const { createOrder, verifySignature } = require("../utils/razorpay");
 
 const router = express.Router();
 const PLATFORM_FEE = 15;
+const FREE_COUPON = "TMKC";
 
 // CUSTOMER: send a booking request (no payment yet — that happens only after acceptance)
 router.post("/request", protect, async (req, res) => {
@@ -103,6 +104,14 @@ router.post("/:id/create-payment-order", protect, async (req, res) => {
     }
     if (booking.paymentStatus === "paid") {
       return res.status(400).json({ message: "Already paid" });
+    }
+
+    const couponCode = (req.body.couponCode || "").trim().toUpperCase();
+    if (couponCode === FREE_COUPON) {
+      booking.paymentStatus = "paid";
+      booking.razorpayPaymentId = `COUPON-${FREE_COUPON}`;
+      await booking.save();
+      return res.json({ free: true, message: "Booking confirmed for free with your coupon!" });
     }
 
     const order = await createOrder(PLATFORM_FEE, `booking_${booking._id}_${Date.now()}`);
