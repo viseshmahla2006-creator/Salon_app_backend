@@ -3,6 +3,7 @@ const Booking = require("../models/Booking");
 const Salon = require("../models/Salon");
 const { protect } = require("../middleware/auth");
 const { createOrder, verifySignature } = require("../utils/razorpay");
+const { isSubscriptionActive } = require("../utils/salonStatus");
 
 const router = express.Router();
 const PLATFORM_FEE = 15;
@@ -14,7 +15,7 @@ router.post("/request", protect, async (req, res) => {
     const { salonId, serviceName, servicePrice, requestedTime } = req.body;
 
     const salon = await Salon.findById(salonId);
-    if (!salon || !salon.subscriptionActive) {
+    if (!salon || !isSubscriptionActive(salon)) {
       return res.status(400).json({ message: "This salon is not currently available" });
     }
 
