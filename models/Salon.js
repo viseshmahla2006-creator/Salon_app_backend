@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const serviceSchema = new mongoose.Schema({
   name: { type: String, required: true },
   price: { type: Number, required: true },
+  icon: { type: String, default: "✂️" },
 });
 
 const salonSchema = new mongoose.Schema(
@@ -18,11 +19,9 @@ const salonSchema = new mongoose.Schema(
     openTime: { type: String, default: "10:00" },
     closeTime: { type: String, default: "20:00" },
 
-    // Live status the owner controls
     isOpen: { type: Boolean, default: true },
-    availabilityNote: { type: String, default: "" }, // e.g. "Free in 30 mins"
+    availabilityNote: { type: String, default: "" },
 
-    // Subscription - salon owner pays ₹199/month to stay listed
     subscriptionActive: { type: Boolean, default: false },
     subscriptionExpiresAt: { type: Date },
   },
