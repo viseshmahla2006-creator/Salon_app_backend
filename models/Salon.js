@@ -24,9 +24,20 @@ const salonSchema = new mongoose.Schema(
     availabilityNote: { type: String, default: "" }, // e.g. "Free in 30 mins"
     tempOpenExpiresAt: { type: Date }, // set when owner uses the 10-min test-open code
 
+    // Rating summary (kept in sync when reviews are added, avoids recomputing every request)
+    averageRating: { type: Number, default: 0 },
+    reviewCount: { type: Number, default: 0 },
+
+    // GPS coordinates, captured from the owner's device when they set up the salon
+    location: {
+      lat: { type: Number },
+      lng: { type: Number },
+    },
+
     // Subscription - salon owner pays ₹199/month to stay listed
     subscriptionActive: { type: Boolean, default: false },
     subscriptionExpiresAt: { type: Date },
+    lastSubscriptionPaymentId: { type: String }, // stops one payment from being used twice
   },
   { timestamps: true }
 );
