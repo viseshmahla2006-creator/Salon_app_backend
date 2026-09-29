@@ -6,6 +6,10 @@ const userSchema = new mongoose.Schema(
     phone: { type: String, required: true, unique: true },
     password: { type: String, required: true }, // hashed
     role: { type: String, enum: ["customer", "owner"], required: true },
+
+    // Brute-force protection
+    failedLogins: { type: Number, default: 0 },
+    lockUntil: { type: Date },
   },
   { timestamps: true }
 );
