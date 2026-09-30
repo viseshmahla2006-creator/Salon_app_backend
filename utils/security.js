@@ -1,7 +1,5 @@
-// Security + validation helpers (no extra packages needed)
 const mongoose = require("mongoose");
 
-// ---------- Security headers (same idea as "helmet") ----------
 function securityHeaders(req, res, next) {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
@@ -12,7 +10,6 @@ function securityHeaders(req, res, next) {
   next();
 }
 
-// ---------- Remove Mongo operators ($ne, $gt...) from user input ----------
 function stripOperators(obj) {
   if (!obj || typeof obj !== "object") return obj;
   for (const key of Object.keys(obj)) {
@@ -31,9 +28,8 @@ function sanitizeInput(req, res, next) {
   next();
 }
 
-// ---------- Rate limiter (in memory) ----------
 function rateLimit({ windowMs, max, message }) {
-  const hits = new Map(); // key -> { count, resetAt }
+  const hits = new Map();
   setInterval(() => {
     const now = Date.now();
     for (const [k, v] of hits) if (v.resetAt <= now) hits.delete(k);
@@ -51,13 +47,12 @@ function rateLimit({ windowMs, max, message }) {
     if (entry.count > max) {
       const wait = Math.ceil((entry.resetAt - now) / 1000);
       res.setHeader("Retry-After", wait);
-      return res.status(429).json({ message: message || `Bahut zyada requests. ${wait} second baad try karo.` });
+      return res.status(429).json({ message: message || `Too many requests. Try again in ${wait} seconds.` });
     }
     next();
   };
 }
 
-// ---------- Async wrapper: any crash inside a route becomes a clean 500 ----------
 function wrap(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch((err) => serverError(res, err, req.originalUrl));
 }
@@ -66,17 +61,16 @@ function serverError(res, err, where = "") {
   console.error("SERVER ERROR", where, err);
   if (res.headersSent) return;
   const body = { message: "Server error, please try again" };
-  if (process.env.DEBUG_ERRORS === "1") body.error = err.message; // only for debugging, set in Render env
+  if (process.env.DEBUG_ERRORS === "1") body.error = err.message;
   res.status(500).json(body);
 }
 
-// ---------- Validators ----------
 function cleanPhone(input) {
   const digits = String(input || "").replace(/\D/g, "");
   return digits.length >= 10 ? digits.slice(-10) : digits;
 }
 function isValidPhone(phone) {
-  return /^[6-9]\d{9}$/.test(phone); // Indian mobile numbers
+  return /^[6-9]\d{9}$/.test(phone);
 }
 function cleanText(input, max = 200) {
   return String(input == null ? "" : input).replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, max);
@@ -87,7 +81,6 @@ function isObjectId(id) {
 function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-// Photos: either a normal https link (Cloudinary) or a small base64 image
 function cleanPhoto(value) {
   if (!value || typeof value !== "string") return "";
   if (/^https:\/\/[^\s]+$/.test(value) && value.length < 500) return value;
