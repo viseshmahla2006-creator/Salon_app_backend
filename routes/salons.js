@@ -12,10 +12,8 @@ const FREE_COUPON = "TMKC";
 const TEST_OPEN_CODE = "MKCC";
 const TEST_OPEN_MINUTES = 10;
 
-// Stops people from guessing the secret codes (max 15 tries per 15 min per IP)
 const codeLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 15 });
 
-// What customers are allowed to see about a salon (no owner phone number)
 function publicSalon(salon) {
   const s = salon.toObject ? salon.toObject() : salon;
   s.owner = s.owner && s.owner.name ? { name: s.owner.name } : undefined;
@@ -38,7 +36,6 @@ function cleanTime(t) {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(t) ? t : undefined;
 }
 
-// OWNER: create or update salon (photo, services, prices, GPS location)
 router.post("/", protect, ownerOnly, wrap(async (req, res) => {
   const b = req.body;
   const data = {
@@ -47,13 +44,13 @@ router.post("/", protect, ownerOnly, wrap(async (req, res) => {
     area: cleanText(b.area, 60),
     address: cleanText(b.address, 200),
   };
-  if (data.shopName.length < 2) return res.status(400).json({ message: "Shop ka naam likhein" });
-  if (!data.city) return res.status(400).json({ message: "City likhein" });
-  if (!data.area) return res.status(400).json({ message: "Area likhein" });
-  if (data.address.length < 5) return res.status(400).json({ message: "Poora address likhein" });
+  if (data.shopName.length < 2) return res.status(400).json({ message: "Enter your shop name" });
+  if (!data.city) return res.status(400).json({ message: "Enter your city" });
+  if (!data.area) return res.status(400).json({ message: "Enter your area" });
+  if (data.address.length < 5) return res.status(400).json({ message: "Enter your full address" });
 
   const services = cleanServices(b.services);
-  if (!services || !services.length) return res.status(400).json({ message: "Kam se kam ek service (naam + price) daalein" });
+  if (!services || !services.length) return res.status(400).json({ message: "Add at least one service (name + price)" });
   data.services = services;
 
   if (b.photoUrl !== undefined) data.photoUrl = cleanPhoto(b.photoUrl);
@@ -85,7 +82,6 @@ router.get("/my-salon", protect, ownerOnly, wrap(async (req, res) => {
   res.json(salon);
 }));
 
-// CUSTOMER: area/city search — only shows salons with an active (unexpired) subscription
 router.get("/", wrap(async (req, res) => {
   const city = cleanText(req.query.city, 40);
   const area = cleanText(req.query.area, 60);
@@ -144,9 +140,8 @@ router.post("/subscribe/verify", protect, ownerOnly, wrap(async (req, res) => {
   const salon = await Salon.findOne({ owner: req.user.id });
   if (!salon) return res.status(404).json({ message: "Please create your salon first" });
 
-  // Same payment can't extend the subscription twice
   if (salon.lastSubscriptionPaymentId === razorpay_payment_id) {
-    return res.status(400).json({ message: "Ye payment pehle hi use ho chuka hai" });
+    return res.status(400).json({ message: "This payment has already been used" });
   }
   salon.lastSubscriptionPaymentId = razorpay_payment_id;
   extendSubscription(salon);
@@ -155,7 +150,6 @@ router.post("/subscribe/verify", protect, ownerOnly, wrap(async (req, res) => {
   res.json({ message: "Subscription is now active!", salon });
 }));
 
-// OWNER: toggle open/closed + availability note. Blocked if subscription has expired.
 router.patch("/status", protect, ownerOnly, wrap(async (req, res) => {
   const { isOpen } = req.body;
   const salon = await Salon.findOne({ owner: req.user.id });
@@ -167,14 +161,13 @@ router.patch("/status", protect, ownerOnly, wrap(async (req, res) => {
 
   if (typeof isOpen === "boolean") {
     salon.isOpen = isOpen;
-    salon.tempOpenExpiresAt = undefined; // a manual toggle cancels any test-open timer
+    salon.tempOpenExpiresAt = undefined;
   }
   if (typeof req.body.availabilityNote === "string") salon.availabilityNote = cleanText(req.body.availabilityNote, 80);
   await salon.save();
   res.json(salon);
 }));
 
-// OWNER: test code that opens the shop for 10 minutes, auto-closes after — no subscription needed
 router.post("/test-open", protect, ownerOnly, codeLimiter, wrap(async (req, res) => {
   const code = cleanText(req.body.code, 20).toUpperCase();
   if (code !== TEST_OPEN_CODE) return res.status(400).json({ message: "Invalid code" });
