@@ -10,7 +10,6 @@ const router = express.Router();
 const MAX_FAILED_LOGINS = 5;
 const LOCK_MINUTES = 15;
 
-// Max 60 auth requests per IP per 15 minutes (many phones can share one IP, so not too tight)
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 60 });
 
 function generateToken(user) {
@@ -23,15 +22,14 @@ function validPassword(password) {
   return typeof password === "string" && password.length >= 6 && password.length <= 64;
 }
 
-// SIGNUP - phone number + password
 router.post("/signup", authLimiter, wrap(async (req, res) => {
   const name = cleanText(req.body.name, 50);
   const phone = cleanPhone(req.body.phone);
   const { password, role } = req.body;
 
-  if (name.length < 2) return res.status(400).json({ message: "Apna poora naam likhein (kam se kam 2 letters)" });
-  if (!isValidPhone(phone)) return res.status(400).json({ message: "Sahi 10-digit mobile number daalein" });
-  if (!validPassword(password)) return res.status(400).json({ message: "Password kam se kam 6 characters ka hona chahiye" });
+  if (name.length < 2) return res.status(400).json({ message: "Please enter your full name (at least 2 letters)" });
+  if (!isValidPhone(phone)) return res.status(400).json({ message: "Enter a valid 10-digit mobile number" });
+  if (!validPassword(password)) return res.status(400).json({ message: "Password must be at least 6 characters" });
   if (role !== "customer" && role !== "owner") return res.status(400).json({ message: "Invalid role" });
 
   const existing = await User.findOne({ phone });
@@ -49,7 +47,6 @@ router.post("/signup", authLimiter, wrap(async (req, res) => {
   res.status(201).json({ token: generateToken(user), user: publicUser(user) });
 }));
 
-// LOGIN - phone number + password (locks for 15 min after 5 wrong passwords)
 router.post("/login", authLimiter, wrap(async (req, res) => {
   const phone = cleanPhone(req.body.phone);
   const password = typeof req.body.password === "string" ? req.body.password : "";
@@ -62,7 +59,7 @@ router.post("/login", authLimiter, wrap(async (req, res) => {
 
   if (user.lockUntil && user.lockUntil > new Date()) {
     const mins = Math.ceil((user.lockUntil - new Date()) / 60000);
-    return res.status(429).json({ message: `Bahut zyada galat koshish. ${mins} minute baad dobara try karein.` });
+    return res.status(429).json({ message: `Too many failed attempts. Try again in ${mins} minutes.` });
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
@@ -84,29 +81,27 @@ router.post("/login", authLimiter, wrap(async (req, res) => {
   res.json({ token: generateToken(user), user: publicUser(user) });
 }));
 
-// PROFILE: edit name
 router.patch("/me", protect, wrap(async (req, res) => {
   const name = cleanText(req.body.name, 50);
-  if (name.length < 2) return res.status(400).json({ message: "Naam kam se kam 2 letters ka hona chahiye" });
+  if (name.length < 2) return res.status(400).json({ message: "Name must be at least 2 letters" });
   const user = await User.findByIdAndUpdate(req.user.id, { name }, { new: true });
   if (!user) return res.status(404).json({ message: "User not found" });
   res.json({ user: publicUser(user) });
 }));
 
-// PROFILE: change password
 router.post("/change-password", protect, authLimiter, wrap(async (req, res) => {
   const { oldPassword, newPassword } = req.body;
-  if (!validPassword(newPassword)) return res.status(400).json({ message: "Naya password kam se kam 6 characters ka hona chahiye" });
+  if (!validPassword(newPassword)) return res.status(400).json({ message: "New password must be at least 6 characters" });
 
   const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ message: "User not found" });
 
   const ok = typeof oldPassword === "string" && (await bcrypt.compare(oldPassword, user.password));
-  if (!ok) return res.status(400).json({ message: "Purana password galat hai" });
+  if (!ok) return res.status(400).json({ message: "Old password is incorrect" });
 
   user.password = await bcrypt.hash(newPassword, 10);
   await user.save();
-  res.json({ message: "Password badal gaya" });
+  res.json({ message: "Password changed" });
 }));
 
 module.exports = router;
