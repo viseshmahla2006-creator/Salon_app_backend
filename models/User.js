@@ -4,8 +4,10 @@ const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     phone: { type: String, required: true, unique: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true }, // hashed
     role: { type: String, enum: ["customer", "owner"], required: true },
+    emailVerified: { type: Boolean, default: false }, // verified via email OTP at signup
 
     // Brute-force protection
     failedLogins: { type: Number, default: 0 },
