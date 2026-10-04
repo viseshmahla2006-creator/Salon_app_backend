@@ -5,12 +5,12 @@ async function connectDB() {
     await mongoose.connect(process.env.MONGO_URI);
     console.log("✅ MongoDB connected");
 
-    // Purane (email/googleId) indexes hata do, sirf _id aur phone rakho
+    // Drop old indexes, keep only _id, phone and email
     try {
       const col = mongoose.connection.collection("users");
       const indexes = await col.indexes();
       for (const idx of indexes) {
-        if (idx.name !== "_id_" && idx.name !== "phone_1") {
+        if (idx.name !== "_id_" && idx.name !== "phone_1" && idx.name !== "email_1") {
           await col.dropIndex(idx.name);
           console.log("🧹 Dropped old index:", idx.name);
         }
