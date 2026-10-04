@@ -1,5 +1,7 @@
+// Security + validation helpers (no extra packages needed)
 const mongoose = require("mongoose");
 
+// ---------- Security headers (same idea as "helmet") ----------
 function securityHeaders(req, res, next) {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
@@ -10,6 +12,7 @@ function securityHeaders(req, res, next) {
   next();
 }
 
+// ---------- Remove Mongo operators ($ne, $gt...) from user input ----------
 function stripOperators(obj) {
   if (!obj || typeof obj !== "object") return obj;
   for (const key of Object.keys(obj)) {
@@ -28,8 +31,9 @@ function sanitizeInput(req, res, next) {
   next();
 }
 
+// ---------- Rate limiter (in memory) ----------
 function rateLimit({ windowMs, max, message }) {
-  const hits = new Map();
+  const hits = new Map(); // key -> { count, resetAt }
   setInterval(() => {
     const now = Date.now();
     for (const [k, v] of hits) if (v.resetAt <= now) hits.delete(k);
@@ -53,6 +57,7 @@ function rateLimit({ windowMs, max, message }) {
   };
 }
 
+// ---------- Async wrapper: any crash inside a route becomes a clean 500 ----------
 function wrap(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch((err) => serverError(res, err, req.originalUrl));
 }
@@ -61,16 +66,23 @@ function serverError(res, err, where = "") {
   console.error("SERVER ERROR", where, err);
   if (res.headersSent) return;
   const body = { message: "Server error, please try again" };
-  if (process.env.DEBUG_ERRORS === "1") body.error = err.message;
+  if (process.env.DEBUG_ERRORS === "1") body.error = err.message; // only for debugging, set in Render env
   res.status(500).json(body);
 }
 
+// ---------- Validators ----------
 function cleanPhone(input) {
   const digits = String(input || "").replace(/\D/g, "");
   return digits.length >= 10 ? digits.slice(-10) : digits;
 }
 function isValidPhone(phone) {
-  return /^[6-9]\d{9}$/.test(phone);
+  return /^[6-9]\d{9}$/.test(phone); // Indian mobile numbers
+}
+function cleanEmail(input) {
+  return String(input || "").trim().toLowerCase();
+}
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "")) && email.length <= 254;
 }
 function cleanText(input, max = 200) {
   return String(input == null ? "" : input).replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, max);
@@ -81,6 +93,7 @@ function isObjectId(id) {
 function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+// Photos: either a normal https link (Cloudinary) or a small base64 image
 function cleanPhoto(value) {
   if (!value || typeof value !== "string") return "";
   if (/^https:\/\/[^\s]+$/.test(value) && value.length < 500) return value;
@@ -90,5 +103,5 @@ function cleanPhoto(value) {
 
 module.exports = {
   securityHeaders, sanitizeInput, rateLimit, wrap, serverError,
-  cleanPhone, isValidPhone, cleanText, isObjectId, escapeRegex, cleanPhoto,
+  cleanPhone, isValidPhone, cleanEmail, isValidEmail, cleanText, isObjectId, escapeRegex, cleanPhoto,
 };
