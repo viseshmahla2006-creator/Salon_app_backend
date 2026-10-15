@@ -22,7 +22,7 @@ function generateToken(user) {
   return jwt.sign({ id: user._id, app: "dhun" }, process.env.JWT_SECRET, { expiresIn: "30d" });
 }
 function publicUser(user) {
-  return { id: user._id, email: user.email };
+  return { id: user._id, email: user.email, name: user.name || "" };
 }
 function validPassword(password) {
   return typeof password === "string" && password.length >= 6 && password.length <= 64;
@@ -130,9 +130,10 @@ router.post("/signup", authLimiter, wrap(async (req, res) => {
   if (existing) return res.status(400).json({ message: "An account with this email already exists. Please log in." });
 
   const hashedPassword = await bcrypt.hash(password, 10);
+  const displayName = typeof req.body.name === "string" ? req.body.name.trim().slice(0, 60) : "";
   let user;
   try {
-    user = await DhunUser.create({ email: emailAddr, password: hashedPassword, emailVerified: true });
+    user = await DhunUser.create({ email: emailAddr, password: hashedPassword, emailVerified: true, name: displayName });
   } catch (err) {
     if (err.code === 11000) return res.status(400).json({ message: "An account with this email already exists. Please log in." });
     throw err;
@@ -182,6 +183,20 @@ router.post("/login", authLimiter, wrap(async (req, res) => {
 const resetStore = new Map(); // email -> { codeHash, expiresAt, attempts }
 
 // SEND reset code (only if the account exists; same reply either way
+// PROFILE - get/update display name (v2.43)
+router.get("/profile", authDhun, wrap(async (req, res) => {
+  const user = await DhunUser.findById(req.user.id).select("name email");
+  if (!user) return res.status(404).json({ message: "User not found" });
+  res.json({ name: user.name || "", email: user.email });
+}));
+router.post("/profile", authDhun, wrap(async (req, res) => {
+  const displayName = typeof req.body.name === "string" ? req.body.name.trim().slice(0, 60) : "";
+  if (!displayName) return res.status(400).json({ message: "Name is required" });
+  const user = await DhunUser.findByIdAndUpdate(req.user.id, { name: displayName }, { new: true }).select("name email");
+  if (!user) return res.status(404).json({ message: "User not found" });
+  res.json({ name: user.name || "", email: user.email });
+}));
+
 // so the endpoint doesn't reveal which emails are registered)
 router.post("/forgot-password", authLimiter, wrap(async (req, res) => {
   const emailAddr = cleanEmail(req.body.email);
