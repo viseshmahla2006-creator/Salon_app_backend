@@ -1,7 +1,9 @@
 {
-  "versionCode": 51,
-  "versionName": "2.44",
-  "apkUrl": "https://muse.ai/files/1286217317918429/1813459669966723/d9uyegx5nvaydgg33b3mk9x2/Dhun-latest-small.apk",
+  "versionCode": 52,
+  "versionName": "2.45",
+  "apkUrl": "https://muse.ai/files/1286217317918429/968589246305367/17u3dosigfwl8a29z3wqmg0l/Dhun-latest-small.apk",
   "size": "4.8 MB",
-  "notes": ""
+  "notes": "",
+  "betaOnly": true,
+  "betaEmails": ["viseshmahla2006@gmail.com"]
 }
