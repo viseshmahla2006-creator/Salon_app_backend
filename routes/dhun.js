@@ -184,12 +184,12 @@ const resetStore = new Map(); // email -> { codeHash, expiresAt, attempts }
 
 // SEND reset code (only if the account exists; same reply either way
 // PROFILE - get/update display name (v2.43)
-router.get("/profile", authDhun, wrap(async (req, res) => {
+router.get("/profile", protect, wrap(async (req, res) => {
   const user = await DhunUser.findById(req.user.id).select("name email");
   if (!user) return res.status(404).json({ message: "User not found" });
   res.json({ name: user.name || "", email: user.email });
 }));
-router.post("/profile", authDhun, wrap(async (req, res) => {
+router.post("/profile", protect, wrap(async (req, res) => {
   const displayName = typeof req.body.name === "string" ? req.body.name.trim().slice(0, 60) : "";
   if (!displayName) return res.status(400).json({ message: "Name is required" });
   const user = await DhunUser.findByIdAndUpdate(req.user.id, { name: displayName }, { new: true }).select("name email");
