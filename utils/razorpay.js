@@ -1,14 +1,23 @@
 const Razorpay = require("razorpay");
 const crypto = require("crypto");
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// v2.43-fix: lazy init — server must start even without Razorpay keys
+// (SONIQ doesn't need payments; SalonWale payments will error clearly).
+let razorpay = null;
+function getRazorpay() {
+  if (razorpay) return razorpay;
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  if (!keyId || !keySecret) {
+    throw new Error("Razorpay keys not configured — payments disabled");
+  }
+  razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
+  return razorpay;
+}
 
 // Order banata hai (amount paise mein deni hoti hai, isliye x100)
 async function createOrder(amountInRupees, receipt) {
-  return razorpay.orders.create({
+  return getRazorpay().orders.create({
     amount: amountInRupees * 100,
     currency: "INR",
     receipt,
@@ -24,4 +33,9 @@ function verifySignature(orderId, paymentId, signature) {
   return generatedSignature === signature;
 }
 
-module.exports = { razorpay, createOrder, verifySignature };
+module.exports = {
+  get razorpay() { return getRazorpay(); },
+  createOrder,
+  verifySignature,
+  isConfigured: () => !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
+};
