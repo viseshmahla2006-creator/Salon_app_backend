@@ -17,6 +17,7 @@ const songSchema = new mongoose.Schema(
 const dhunUserSchema = new mongoose.Schema(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    name: { type: String, default: "", trim: true }, // v2.43: display name
     password: { type: String, required: true }, // bcrypt hash
     emailVerified: { type: Boolean, default: false }, // verified via email OTP at signup
 
