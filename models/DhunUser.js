@@ -24,6 +24,19 @@ const dhunUserSchema = new mongoose.Schema(
     liked: { type: [songSchema], default: [] },
     recents: { type: [songSchema], default: [] },
 
+    // Cloud sync: playlists follow the account too (name-keyed)
+    playlists: {
+      type: [
+        {
+          name: String,
+          songs: { type: [songSchema], default: [] },
+          updatedAt: Number,
+          _id: false,
+        },
+      ],
+      default: [],
+    },
+
     // Brute-force protection
     failedLogins: { type: Number, default: 0 },
     lockUntil: { type: Date },

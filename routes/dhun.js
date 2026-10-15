@@ -287,6 +287,16 @@ function cleanSong(s) {
   };
 }
 
+function cleanPlaylist(p) {
+  if (!p || typeof p !== "object") return null;
+  const name = cleanText(p.name, 100);
+  if (!name) return null;
+  const songs = Array.isArray(p.songs)
+    ? p.songs.map(cleanSong).filter(Boolean).slice(0, 500)
+    : [];
+  return { name, songs, updatedAt: Math.floor(Number(p.updatedAt) || 0) };
+}
+
 function requireDhun(req, res) {
   if (!req.user || req.user.app !== "dhun") {
     res.status(401).json({ message: "Invalid token" });
@@ -297,9 +307,9 @@ function requireDhun(req, res) {
 
 router.get("/sync", protect, wrap(async (req, res) => {
   if (!requireDhun(req, res)) return;
-  const user = await DhunUser.findById(req.user.id).select("liked recents");
+  const user = await DhunUser.findById(req.user.id).select("liked recents playlists");
   if (!user) return res.status(404).json({ message: "User not found" });
-  res.json({ liked: user.liked || [], recents: user.recents || [] });
+  res.json({ liked: user.liked || [], recents: user.recents || [], playlists: user.playlists || [] });
 }));
 
 router.post("/sync", protect, wrap(async (req, res) => {
@@ -308,14 +318,17 @@ router.post("/sync", protect, wrap(async (req, res) => {
     ? req.body.liked.map(cleanSong).filter(Boolean).slice(0, 1000) : null;
   const recents = Array.isArray(req.body.recents)
     ? req.body.recents.map(cleanSong).filter(Boolean).slice(0, 50) : null;
-  if (!liked || !recents) return res.status(400).json({ message: "Invalid request" });
+  const playlists = Array.isArray(req.body.playlists)
+    ? req.body.playlists.map(cleanPlaylist).filter(Boolean).slice(0, 50) : null;
+  if (!liked || !recents || !playlists) return res.status(400).json({ message: "Invalid request" });
 
   const user = await DhunUser.findById(req.user.id);
   if (!user) return res.status(404).json({ message: "User not found" });
   user.liked = liked;
   user.recents = recents;
+  user.playlists = playlists;
   await user.save();
-  res.json({ ok: true, liked: liked.length, recents: recents.length });
+  res.json({ ok: true, liked: liked.length, recents: recents.length, playlists: playlists.length });
 }));
 
 module.exports = router;
