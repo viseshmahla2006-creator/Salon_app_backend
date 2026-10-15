@@ -175,6 +175,63 @@ router.post("/login", authLimiter, wrap(async (req, res) => {
   res.json({ token: generateToken(user), user: publicUser(user) });
 }));
 
+// ---------- Password reset ----------
+const resetStore = new Map(); // email -> { codeHash, expiresAt, attempts }
+
+// SEND reset code (only if the account exists; same reply either way
+// so the endpoint doesn't reveal which emails are registered)
+router.post("/forgot-password", authLimiter, wrap(async (req, res) => {
+  const emailAddr = cleanEmail(req.body.email);
+  if (!isValidEmail(emailAddr)) return res.status(400).json({ message: "Enter a valid email address" });
+
+  const user = await DhunUser.findOne({ email: emailAddr });
+  if (user) {
+    const cooldownMsg = checkOtpCooldown(emailAddr);
+    if (cooldownMsg) return res.status(429).json({ message: cooldownMsg });
+
+    const code = generateCode();
+    resetStore.set(emailAddr, { codeHash: hashCode(code), expiresAt: Date.now() + OTP_TTL_MS, attempts: 0 });
+    try {
+      await email.sendOtpEmail(emailAddr, code, "SONIQ");
+    } catch (err) {
+      return res.status(502).json({ message: err.message });
+    }
+  }
+  res.json({ message: "If an account exists for this email, a reset code has been sent" });
+}));
+
+// RESET password with the emailed code
+router.post("/reset-password", otpVerifyLimiter, wrap(async (req, res) => {
+  const emailAddr = cleanEmail(req.body.email);
+  const code = cleanText(req.body.otp, 10);
+  const password = req.body.password;
+  if (!isValidEmail(emailAddr) || !code) return res.status(400).json({ message: "Enter the code you received" });
+  if (!validPassword(password)) return res.status(400).json({ message: "Password must be at least 6 characters" });
+
+  const entry = resetStore.get(emailAddr);
+  if (!entry || entry.expiresAt < Date.now()) {
+    resetStore.delete(emailAddr);
+    return res.status(400).json({ message: "Incorrect or expired code" });
+  }
+  if (entry.attempts >= OTP_MAX_ATTEMPTS) {
+    resetStore.delete(emailAddr);
+    return res.status(400).json({ message: "Too many incorrect attempts. Please request a new code." });
+  }
+  if (hashCode(code) !== entry.codeHash) {
+    entry.attempts++;
+    return res.status(400).json({ message: "Incorrect or expired code" });
+  }
+  resetStore.delete(emailAddr);
+
+  const user = await DhunUser.findOne({ email: emailAddr });
+  if (!user) return res.status(400).json({ message: "Incorrect or expired code" });
+  user.password = await bcrypt.hash(password, 10);
+  user.failedLogins = 0;
+  user.lockUntil = undefined;
+  await user.save();
+  res.json({ ok: true, message: "Password updated. Please log in with your new password." });
+}));
+
 // ME - validate session
 router.get("/me", protect, wrap(async (req, res) => {
   if (req.user.app !== "dhun") return res.status(401).json({ message: "Invalid token" });
