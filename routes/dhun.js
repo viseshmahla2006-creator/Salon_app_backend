@@ -259,13 +259,14 @@ router.get("/admin/users", wrap(async (req, res) => {
     return res.status(403).json({ message: "Forbidden" });
   }
   const users = await DhunUser.find({})
-    .select("email createdAt lastLoginAt loginCount emailVerified")
+    .select("email name createdAt lastLoginAt loginCount emailVerified")
     .sort({ createdAt: -1 })
     .lean();
   res.json({
     count: users.length,
     users: users.map(u => ({
       email: u.email,
+      name: u.name || null,
       signedUp: u.createdAt,
       lastLogin: u.lastLoginAt || null,
       logins: u.loginCount || 0,
