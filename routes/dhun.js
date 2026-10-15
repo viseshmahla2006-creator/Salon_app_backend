@@ -86,7 +86,7 @@ router.post("/send-otp", authLimiter, wrap(async (req, res) => {
   otpStore.set(emailAddr, { codeHash: hashCode(code), expiresAt: Date.now() + OTP_TTL_MS, attempts: 0 });
 
   try {
-    await email.sendOtpEmail(emailAddr, code, "Dhun");
+    await email.sendOtpEmail(emailAddr, code, "SONIQ");
   } catch (err) {
     return res.status(502).json({ message: err.message });
   }
