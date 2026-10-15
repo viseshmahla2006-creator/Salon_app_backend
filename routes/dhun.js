@@ -183,4 +183,55 @@ router.get("/me", protect, wrap(async (req, res) => {
   res.json({ user: publicUser(user) });
 }));
 
+// ---------- Cloud sync ----------
+// The app keeps liked songs + recents locally; these endpoints let the same
+// account carry them across devices. Full-replace semantics: the client sends
+// its merged lists, the server stores them. Sizes are capped.
+
+function cleanSong(s) {
+  if (!s || typeof s !== "object") return null;
+  const videoId = cleanText(s.videoId, 40);
+  if (!videoId) return null;
+  const at = Number(s.at);
+  return {
+    videoId,
+    title: cleanText(s.title, 200),
+    artist: cleanText(s.artist, 200),
+    thumb: cleanText(s.thumb, 500),
+    dur: Math.max(0, Number(s.dur) || 0),
+    at: Number.isFinite(at) && at > 0 ? Math.floor(at) : Date.now(),
+  };
+}
+
+function requireDhun(req, res) {
+  if (!req.user || req.user.app !== "dhun") {
+    res.status(401).json({ message: "Invalid token" });
+    return false;
+  }
+  return true;
+}
+
+router.get("/sync", protect, wrap(async (req, res) => {
+  if (!requireDhun(req, res)) return;
+  const user = await DhunUser.findById(req.user.id).select("liked recents");
+  if (!user) return res.status(404).json({ message: "User not found" });
+  res.json({ liked: user.liked || [], recents: user.recents || [] });
+}));
+
+router.post("/sync", protect, wrap(async (req, res) => {
+  if (!requireDhun(req, res)) return;
+  const liked = Array.isArray(req.body.liked)
+    ? req.body.liked.map(cleanSong).filter(Boolean).slice(0, 1000) : null;
+  const recents = Array.isArray(req.body.recents)
+    ? req.body.recents.map(cleanSong).filter(Boolean).slice(0, 50) : null;
+  if (!liked || !recents) return res.status(400).json({ message: "Invalid request" });
+
+  const user = await DhunUser.findById(req.user.id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  user.liked = liked;
+  user.recents = recents;
+  await user.save();
+  res.json({ ok: true, liked: liked.length, recents: recents.length });
+}));
+
 module.exports = router;
