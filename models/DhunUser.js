@@ -27,6 +27,10 @@ const dhunUserSchema = new mongoose.Schema(
     // Brute-force protection
     failedLogins: { type: Number, default: 0 },
     lockUntil: { type: Date },
+
+    // Login tracking (for the owner's admin view)
+    lastLoginAt: { type: Date },
+    loginCount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

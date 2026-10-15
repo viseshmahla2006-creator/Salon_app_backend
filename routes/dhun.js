@@ -170,8 +170,11 @@ router.post("/login", authLimiter, wrap(async (req, res) => {
   if (user.failedLogins || user.lockUntil) {
     user.failedLogins = 0;
     user.lockUntil = undefined;
-    await user.save();
   }
+  // login tracking for the owner's admin view
+  user.lastLoginAt = new Date();
+  user.loginCount = (user.loginCount || 0) + 1;
+  await user.save();
   res.json({ token: generateToken(user), user: publicUser(user) });
 }));
 
@@ -230,6 +233,30 @@ router.post("/reset-password", otpVerifyLimiter, wrap(async (req, res) => {
   user.lockUntil = undefined;
   await user.save();
   res.json({ ok: true, message: "Password updated. Please log in with your new password." });
+}));
+
+// ---------- Owner admin view ----------
+// Who has signed up / logged in. Guarded by DHUN_ADMIN_KEY (Render env var),
+// so it stays out of the app itself — the owner asks Muse, Muse checks.
+router.get("/admin/users", wrap(async (req, res) => {
+  const adminKey = process.env.DHUN_ADMIN_KEY;
+  if (!adminKey || req.query.key !== adminKey) {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+  const users = await DhunUser.find({})
+    .select("email createdAt lastLoginAt loginCount emailVerified")
+    .sort({ createdAt: -1 })
+    .lean();
+  res.json({
+    count: users.length,
+    users: users.map(u => ({
+      email: u.email,
+      signedUp: u.createdAt,
+      lastLogin: u.lastLoginAt || null,
+      logins: u.loginCount || 0,
+      verified: !!u.emailVerified,
+    })),
+  });
 }));
 
 // ME - validate session
