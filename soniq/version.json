@@ -1,9 +1,9 @@
 {
-  "versionCode": 54,
-  "versionName": "2.47",
-  "apkUrl": "https://muse.ai/files/1286217317918429/1018243084635333/rgxmo3qfggl2d6yp7vyf6bx2/Dhun.apk",
-  "size": "4.8 MB",
+  "versionCode": 56,
+  "versionName": "2.49",
+  "apkUrl": "https://muse.ai/files/1286217317918429/2186567338933264/e59k194h0engay10reij2yll/Dhun.apk",
+  "size": "4.7 MB",
   "notes": "",
-  "betaOnly": false,
+  "betaOnly": true,
   "betaEmails": ["viseshmahla2006@gmail.com"]
 }
