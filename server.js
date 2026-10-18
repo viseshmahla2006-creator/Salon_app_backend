@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 const connectDB = require("./config/db");
 const { securityHeaders, sanitizeInput, rateLimit } = require("./utils/security");
 
@@ -28,8 +29,9 @@ connectDB();
 
 app.get("/", (req, res) => res.send("Salon Booking API is running ✅"));
 app.get("/health", (req, res) => res.json({ ok: true })); // ping this from UptimeRobot to avoid cold starts
+app.get("/sorry", (req, res) => res.sendFile(path.join(__dirname, "sorry.html")));
 
-// Coupon check: tight limit so codes can't be guessed
+// Coupon check: tight limit so codes cannot be guessed
 app.use("/api/coupons", rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }), couponRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/dhun", dhunRoutes); // Dhun music app accounts (email+OTP)
