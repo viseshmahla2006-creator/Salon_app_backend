@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>I'm Sorry ❤️</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:#0d0518;
+    color:#fff;
+    min-height:100vh;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:20px;
+  }
+  /* floating hearts background */
+  .heart-bg {
+    position:fixed; top:-30px; font-size:22px; opacity:0;
+    animation:fall linear forwards; pointer-events:none; z-index:0;
+  }
+  @keyframes fall {
+    0% { transform:translateY(-30px) rotate(0deg); opacity:0; }
+    10% { opacity:.7; }
+    100% { transform:translateY(110vh) rotate(340deg); opacity:0; }
+  }
+  .card {
+    position:relative; z-index:2; max-width:480px; width:100%;
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,120,170,.25);
+    border-radius:28px;
+    padding:38px 26px;
+    backdrop-filter:blur(14px);
+    box-shadow:0 0 60px rgba(255,60,120,.18), inset 0 0 40px rgba(255,255,255,.03);
+    animation:cardIn 1s ease both;
+  }
+  @keyframes cardIn {
+    from { transform:scale(.85) translateY(30px); opacity:0; }
+    to { transform:scale(1) translateY(0); opacity:1; }
+  }
+  h1 {
+    font-size:52px; font-weight:800; letter-spacing:1px;
+    background:linear-gradient(135deg,#ff5e8a,#ffb3c9,#ff5e8a);
+    background-size:200% auto;
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation:shine 3s linear infinite, pop .8s .3s ease both;
+  }
+  @keyframes shine { to { background-position:200% center; } }
+  @keyframes pop { from { transform:scale(.6); opacity:0; } to { transform:scale(1); opacity:1; } }
+  .sub {
+    margin-top:10px; font-size:17px; color:#f3c6d6; line-height:1.6;
+    animation:fadeUp 1s .6s ease both;
+  }
+  @keyframes fadeUp { from { transform:translateY(16px); opacity:0; } to { transform:none; opacity:1; } }
+  .emotional {
+    min-height:74px; margin:20px 0 6px; font-size:18px; font-style:italic;
+    color:#ffd9e6; line-height:1.55; display:flex; align-items:center; justify-content:center;
+    transition:opacity .3s;
+  }
+  .emotional.show { animation:lineIn .5s ease both; }
+  @keyframes lineIn { from { transform:translateY(10px) scale(.96); opacity:0; } to { transform:none; opacity:1; } }
+  .btns { display:flex; gap:14px; justify-content:center; margin-top:14px; flex-wrap:wrap; }
+  button {
+    border:none; cursor:pointer; font-weight:700; border-radius:999px;
+    padding:15px 30px; font-size:17px; transition:transform .25s, box-shadow .25s;
+    color:#fff;
+  }
+  #loveBtn {
+    background:linear-gradient(135deg,#ff2e63,#ff7aa8);
+    box-shadow:0 6px 24px rgba(255,46,99,.5);
+  }
+  #loveBtn:active { transform:scale(.94); }
+  #hateBtn {
+    background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,255,255,.25);
+    color:#d9c2ce;
+  }
+  /* celebration */
+  #celebrate { display:none; position:relative; z-index:2; }
+  #celebrate.show { display:block; animation:cardIn .8s ease both; }
+  #celebrate h1 { font-size:46px; }
+  .big-heart { font-size:90px; animation:beat 1s ease infinite; margin:10px 0; }
+  @keyframes beat { 0%,100% { transform:scale(1); } 25% { transform:scale(1.18); } 40% { transform:scale(1); } }
+  .final-line { font-size:19px; color:#ffd9e6; margin-top:14px; line-height:1.7; }
+  .burst {
+    position:fixed; font-size:26px; pointer-events:none; z-index:5;
+    animation:burst 1.6s ease-out forwards;
+  }
+  @keyframes burst {
+    0% { transform:translate(0,0) scale(.5); opacity:1; }
+    100% { transform:translate(var(--dx),var(--dy)) scale(1.4) rotate(200deg); opacity:0; }
+  }
+  .hint { margin-top:18px; font-size:13px; color:#8f7583; }
+</style>
+</head>
+<body>
+
+<div class="card" id="mainCard">
+  <h1>I'm Sorry ❤️</h1>
+  <p class="sub">I know you're upset with me, and I hate being the reason.<br>
+  You mean the world to me — please forgive me?</p>
+  <div class="emotional" id="emotional"></div>
+  <div class="btns">
+    <button id="loveBtn">I love you ❤️</button>
+    <button id="hateBtn">I hate you 💔</button>
+  </div>
+  <p class="hint">choose wisely... 😌</p>
+</div>
+
+<div id="celebrate">
+  <div class="big-heart">❤️</div>
+  <h1>I KNEW IT!</h1>
+  <p class="final-line">I love you more than yesterday,<br>less than tomorrow.<br><br>
+  You're the best thing that ever happened to me.<br>Forever yours. 💖</p>
+</div>
+
+<script>
+  const emotionalLines = [
+    "Wait... really? My heart just broke a little. 💔",
+    "Please... I've been restless all day thinking about you. 🥺",
+    "I can't even sleep properly knowing you're upset with me. 😢",
+    "Okay... I'll just keep trying. I'm not giving up on us. ❤️‍🩹",
+    "This button is getting smaller... just like my chances. Please? 🥹",
+    "You know you don't mean that... your heart is too beautiful for hate. 💖",
+    "Fine — I'll ask a hundred times if I have to. Forgive me? 🙏",
+    "Last chance... my heart can't take much more of this! 😭"
+  ];
+  const loveLabels = ["I love you ❤️","I really love you ❤️","I love you so much ❤️","I LOVE YOU! ❤️","OKAY I ADORE YOU ❤️"];
+  let hateCount = 0;
+  const loveBtn = document.getElementById('loveBtn');
+  const hateBtn = document.getElementById('hateBtn');
+  const emotional = document.getElementById('emotional');
+
+  // floating hearts background
+  const hearts = ['❤️','💖','💕','💗','💓'];
+  setInterval(() => {
+    const h = document.createElement('div');
+    h.className = 'heart-bg';
+    h.textContent = hearts[Math.floor(Math.random()*hearts.length)];
+    h.style.left = Math.random()*100 + 'vw';
+    h.style.fontSize = (14+Math.random()*22) + 'px';
+    h.style.animationDuration = (4+Math.random()*4) + 's';
+    document.body.appendChild(h);
+    setTimeout(() => h.remove(), 9000);
+  }, 700);
+
+  hateBtn.addEventListener('click', () => {
+    const line = emotionalLines[Math.min(hateCount, emotionalLines.length-1)];
+    emotional.textContent = '"' + line + '"';
+    emotional.classList.remove('show');
+    void emotional.offsetWidth;
+    emotional.classList.add('show');
+    hateCount++;
+
+    // love button grows, hate button shrinks
+    const loveScale = Math.min(1 + hateCount*0.18, 2.1);
+    const hateScale = Math.max(1 - hateCount*0.12, 0.35);
+    loveBtn.style.transform = `scale(${loveScale})`;
+    hateBtn.style.transform = `scale(${hateScale})`;
+    loveBtn.textContent = loveLabels[Math.min(hateCount, loveLabels.length-1)];
+
+    // after many hates, the hate button starts dodging (playful)
+    if (hateCount >= 4 && Math.random() < 0.6) {
+      const x = (Math.random()-0.5)*120, y = (Math.random()-0.5)*60;
+      hateBtn.style.translate = `${x}px ${y}px`;
+      setTimeout(()=> hateBtn.style.translate = '0 0', 900);
+    }
+    if (hateCount >= 8) {
+      hateBtn.style.display = 'none';
+      emotional.textContent = '"Okay, the hate button gave up... your turn. ❤️"';
+    }
+  });
+
+  loveBtn.addEventListener('click', () => {
+    document.getElementById('mainCard').style.display = 'none';
+    const c = document.getElementById('celebrate');
+    c.classList.add('show');
+    // heart burst
+    for (let i=0;i<70;i++) {
+      const b = document.createElement('div');
+      b.className = 'burst';
+      b.textContent = hearts[Math.floor(Math.random()*hearts.length)];
+      b.style.left = '50vw'; b.style.top = '40vh';
+      const ang = Math.random()*Math.PI*2, dist = 120+Math.random()*280;
+      b.style.setProperty('--dx', Math.cos(ang)*dist+'px');
+      b.style.setProperty('--dy', Math.sin(ang)*dist+'px');
+      b.style.animationDelay = (Math.random()*0.5)+'s';
+      document.body.appendChild(b);
+      setTimeout(()=>b.remove(), 2200);
+    }
+  });
+</script>
+</body>
+</html>
