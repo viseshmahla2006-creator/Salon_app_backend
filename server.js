@@ -11,6 +11,7 @@ const salonRoutes = require("./routes/salons");
 const bookingRoutes = require("./routes/bookings");
 const couponRoutes = require("./routes/coupons");
 const socialRoutes = require("./routes/social");
+const ttsRoutes = require("./routes/tts");
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.get("/sorry", (req, res) => res.sendFile(path.join(__dirname, "sorry.html"))
 app.use("/api/coupons", rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }), couponRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/dhun", dhunRoutes); // Dhun music app accounts (email+OTP)
+app.use("/api/tts", ttsRoutes); // Billu cat natural voice (SONIQ)
 app.use("/api/salons", salonRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api", socialRoutes); // /reviews, /favorites, /reports
