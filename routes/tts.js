@@ -70,9 +70,50 @@ function synthesizeOnce(text, withGec) {
   });
 }
 
+// Fallback voice: Google Translate TTS (female Hindi, simple GET).
+const https = require("https");
+function googleTtsChunk(q) {
+  return new Promise((resolve, reject) => {
+    const url = "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=hi&q="
+      + encodeURIComponent(q);
+    const rq = https.get(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36" },
+      timeout: 15000,
+    }, (rs) => {
+      if (rs.statusCode !== 200) { rs.resume(); return reject(new Error("google tts " + rs.statusCode)); }
+      const parts = [];
+      rs.on("data", (c) => parts.push(c));
+      rs.on("end", () => resolve(Buffer.concat(parts)));
+    });
+    rq.on("error", reject);
+    rq.on("timeout", () => { rq.destroy(new Error("google tts timeout")); });
+  });
+}
+
+async function googleTts(text) {
+  // split into <=180-char chunks on sentence boundaries
+  const chunks = [];
+  let cur = "";
+  for (const part of text.split(/(?<=[।.!?])\s*/)) {
+    if (!part) continue;
+    if ((cur + part).length > 180) { if (cur) chunks.push(cur); cur = part; }
+    else cur += part;
+  }
+  if (cur) chunks.push(cur);
+  const bufs = [];
+  for (const c of chunks.slice(0, 4)) bufs.push(await googleTtsChunk(c.slice(0, 180)));
+  return Buffer.concat(bufs);
+}
+
 async function synthesize(text) {
   try { return await synthesizeOnce(text, true); }
-  catch (e) { return await synthesizeOnce(text, false); }
+  catch (e1) {
+    try { return await synthesizeOnce(text, false); }
+    catch (e2) {
+      console.error("edge tts failed:", e1.message, "/", e2.message);
+      return await googleTts(text);
+    }
+  }
 }
 
 router.get("/warm", (req, res) => res.json({ ok: true }));
