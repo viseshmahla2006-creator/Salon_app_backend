@@ -31,6 +31,7 @@ connectDB();
 app.get("/", (req, res) => res.send("Salon Booking API is running ✅"));
 app.get("/health", (req, res) => res.json({ ok: true })); // ping this from UptimeRobot to avoid cold starts
 app.get("/sorry", (req, res) => res.sendFile(path.join(__dirname, "sorry.html")));
+app.get("/busy", (req, res) => res.sendFile(path.join(__dirname, "busy.html")));
 
 // Coupon check: tight limit so codes cannot be guessed
 app.use("/api/coupons", rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }), couponRoutes);
