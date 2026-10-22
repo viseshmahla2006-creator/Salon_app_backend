@@ -386,6 +386,7 @@ function groupPublicSession(s) {
     members: Array.from(s.members.values()).map(m => m.name),
     memberCount: s.members.size + 1,
     state: s.state,
+    seq: s.seq,
   };
 }
 function pruneGroupSessions() {
@@ -513,6 +514,9 @@ router.post("/group/state", protect, wrap(async (req, res) => {
     title: cleanText(req.body.title, 200),
     artist: cleanText(req.body.artist, 200),
     thumb: cleanText(req.body.thumb, 500),
+    // v2.62: host's encrypted stream URL, so a guest can decrypt + play
+    // instantly instead of re-searching the song (that search cost ~1-2s).
+    encUrl: cleanText(req.body.encUrl, 1000),
     dur: Math.max(0, Number(req.body.dur) || 0),
     playing: req.body.playing === true,
     positionMs: Math.max(0, Number(req.body.positionMs) || 0),
@@ -524,12 +528,30 @@ router.post("/group/state", protect, wrap(async (req, res) => {
 }));
 
 // Host or accepted guest reads the current playback state.
+// v2.62 long-poll: ?wait=1&seq=N holds the request (max ~18s, under the
+// app's 20s read timeout) until the host's seq changes, then returns at
+// once. That is what kills the old 3s polling delay: a song change reaches
+// a guest in one network round-trip, not at the next poll tick — and idle
+// guests cost ~1 request per 18s instead of 1 per 3s.
 router.get("/group/state", protect, wrap(async (req, res) => {
   if (!requireDhun(req, res)) return;
   const found = findGroupSessionFor(req.user.id);
   if (!found.session) return res.status(404).json({ message: "Session ended" });
-  found.session.lastActivityAt = Date.now();
-  res.json(Object.assign({ role: found.role }, groupPublicSession(found.session)));
+  if (req.query.wait === "1") {
+    const wantSeq = Number(req.query.seq);
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    for (let i = 0; i < 90; i++) {
+      const live = findGroupSessionFor(req.user.id);
+      if (!live.session) return res.status(404).json({ message: "Session ended" });
+      if (Number.isFinite(wantSeq) && live.session.seq !== wantSeq) break;
+      if (!Number.isFinite(wantSeq)) break;
+      await sleep(200);
+    }
+  }
+  const live = findGroupSessionFor(req.user.id);
+  if (!live.session) return res.status(404).json({ message: "Session ended" });
+  live.session.lastActivityAt = Date.now();
+  res.json(Object.assign({ role: live.role }, groupPublicSession(live.session)));
 }));
 
 // What session (if any) am I in?
