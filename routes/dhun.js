@@ -347,4 +347,213 @@ router.post("/sync", protect, wrap(async (req, res) => {
   res.json({ ok: true, liked: liked.length, recents: recents.length, playlists: playlists.length });
 }));
 
+// ---------- Group Sync (v2.61): one host, unlimited guests, same song together ----------
+// Design: host shows a 6-digit code. A guest enters the code and sends a join
+// request. The host sees Accept / Decline. On accept, the guest joins and
+// follows the host's playback (song + position + play/pause) by polling.
+// Sessions live in memory on this Render instance (like the OTP stores above):
+// a server restart or 2h of silence ends a session, and the app treats a
+// missing session as "ended". No audio is relayed through the backend —
+// guests stream the same song from JioSaavn on their own phone, so the
+// backend only carries tiny state (song id, position, playing flag).
+// Polling is deliberately slow (host ~4s, guest ~3s) so many phones on one
+// Wi-Fi IP stay under the general /api rate limit.
+const groupSessions = new Map(); // code -> session
+const groupRequests = new Map(); // requestId -> request
+const GROUP_TTL_MS = 2 * 60 * 60 * 1000;
+
+function groupDisplayName(user) {
+  if (user && user.name) return user.name;
+  if (user && user.email) return String(user.email).split("@")[0];
+  return "Guest";
+}
+function newGroupCode() {
+  let code = "";
+  do { code = String(crypto.randomInt(100000, 1000000)); } while (groupSessions.has(code));
+  return code;
+}
+function findGroupSessionFor(userId) {
+  for (const s of groupSessions.values()) {
+    if (s.hostId === String(userId)) return { session: s, role: "host" };
+    if (s.members.has(String(userId))) return { session: s, role: "guest" };
+  }
+  return { session: null, role: null };
+}
+function groupPublicSession(s) {
+  return {
+    code: s.code,
+    hostName: s.hostName,
+    members: Array.from(s.members.values()).map(m => m.name),
+    memberCount: s.members.size + 1,
+    state: s.state,
+  };
+}
+function pruneGroupSessions() {
+  const now = Date.now();
+  for (const [code, s] of groupSessions.entries()) {
+    const last = Math.max(s.createdAt, s.lastActivityAt || 0, s.state ? s.state.updatedAt : 0);
+    if (now - last > GROUP_TTL_MS) {
+      groupSessions.delete(code);
+      for (const [rid, r] of groupRequests.entries()) {
+        if (r.code === code && r.status === "pending") groupRequests.delete(rid);
+      }
+    }
+  }
+}
+
+// Host creates a session and gets a code to share.
+router.post("/group/create", protect, wrap(async (req, res) => {
+  if (!requireDhun(req, res)) return;
+  pruneGroupSessions();
+  const existing = findGroupSessionFor(req.user.id);
+  if (existing.session && existing.role === "host") {
+    return res.json({ code: existing.session.code, hostName: existing.session.hostName });
+  }
+  if (existing.session) {
+    // was a guest elsewhere — leave that session first
+    existing.session.members.delete(String(req.user.id));
+  }
+  const user = await DhunUser.findById(req.user.id).select("name email");
+  if (!user) return res.status(404).json({ message: "User not found" });
+  const code = newGroupCode();
+  const session = {
+    code, hostId: String(req.user.id), hostName: groupDisplayName(user),
+    createdAt: Date.now(), lastActivityAt: Date.now(),
+    members: new Map(), state: null, seq: 0,
+  };
+  groupSessions.set(code, session);
+  res.json({ code, hostName: session.hostName });
+}));
+
+// Guest sends a join request with the host's code.
+router.post("/group/join", protect, wrap(async (req, res) => {
+  if (!requireDhun(req, res)) return;
+  pruneGroupSessions();
+  const code = String(req.body.code || "").replace(/\D/g, "").slice(0, 6);
+  if (!/^\d{6}$/.test(code)) return res.status(400).json({ message: "Enter the 6-digit code" });
+  const session = groupSessions.get(code);
+  if (!session) return res.status(404).json({ message: "No session found for this code" });
+  if (session.hostId === String(req.user.id)) {
+    return res.status(400).json({ message: "This is your own session code" });
+  }
+  if (session.members.has(String(req.user.id))) {
+    return res.json({ requestId: null, status: "accepted", code, hostName: session.hostName });
+  }
+  for (const r of groupRequests.values()) {
+    if (r.code === code && r.guestId === String(req.user.id) && r.status === "pending") {
+      return res.json({ requestId: r.id, status: "pending", code, hostName: session.hostName });
+    }
+  }
+  const user = await DhunUser.findById(req.user.id).select("name email");
+  if (!user) return res.status(404).json({ message: "User not found" });
+  const id = crypto.randomBytes(12).toString("hex");
+  groupRequests.set(id, {
+    id, code, guestId: String(req.user.id), guestName: groupDisplayName(user),
+    status: "pending", createdAt: Date.now(),
+  });
+  res.json({ requestId: id, status: "pending", code, hostName: session.hostName });
+}));
+
+// Guest checks whether the host accepted or declined.
+router.get("/group/request/:id", protect, wrap(async (req, res) => {
+  if (!requireDhun(req, res)) return;
+  const r = groupRequests.get(cleanText(req.params.id, 40));
+  if (!r || r.guestId !== String(req.user.id)) {
+    return res.status(404).json({ message: "Request not found" });
+  }
+  const session = groupSessions.get(r.code);
+  res.json({ status: r.status, code: r.code, hostName: session ? session.hostName : "" });
+}));
+
+// Host lists pending join requests for their session.
+router.get("/group/requests", protect, wrap(async (req, res) => {
+  if (!requireDhun(req, res)) return;
+  const found = findGroupSessionFor(req.user.id);
+  if (!found.session || found.role !== "host") return res.json({ requests: [] });
+  const out = [];
+  for (const r of groupRequests.values()) {
+    if (r.code === found.session.code && r.status === "pending") {
+      out.push({ id: r.id, guestName: r.guestName, createdAt: r.createdAt });
+    }
+  }
+  out.sort((a, b) => a.createdAt - b.createdAt);
+  res.json({ requests: out });
+}));
+
+// Host accepts or declines a join request.
+router.post("/group/respond", protect, wrap(async (req, res) => {
+  if (!requireDhun(req, res)) return;
+  const r = groupRequests.get(cleanText(req.body.requestId, 40));
+  if (!r || r.status !== "pending") return res.status(404).json({ message: "Request not found" });
+  const session = groupSessions.get(r.code);
+  if (!session || session.hostId !== String(req.user.id)) {
+    return res.status(403).json({ message: "Only the host can respond" });
+  }
+  const accept = req.body.accept === true;
+  r.status = accept ? "accepted" : "declined";
+  if (accept) {
+    session.members.set(r.guestId, { name: r.guestName, joinedAt: Date.now() });
+    session.lastActivityAt = Date.now();
+  }
+  res.json({ status: r.status, guestName: r.guestName });
+}));
+
+// Host broadcasts current playback (song + position + playing).
+router.post("/group/state", protect, wrap(async (req, res) => {
+  if (!requireDhun(req, res)) return;
+  const found = findGroupSessionFor(req.user.id);
+  if (!found.session || found.role !== "host") {
+    return res.status(403).json({ message: "Only the host can broadcast" });
+  }
+  const videoId = cleanText(req.body.videoId, 40);
+  if (!videoId) return res.status(400).json({ message: "No song playing" });
+  const s = found.session;
+  s.state = {
+    videoId,
+    title: cleanText(req.body.title, 200),
+    artist: cleanText(req.body.artist, 200),
+    thumb: cleanText(req.body.thumb, 500),
+    dur: Math.max(0, Number(req.body.dur) || 0),
+    playing: req.body.playing === true,
+    positionMs: Math.max(0, Number(req.body.positionMs) || 0),
+    updatedAt: Date.now(),
+  };
+  s.seq++;
+  s.lastActivityAt = Date.now();
+  res.json({ ok: true, seq: s.seq });
+}));
+
+// Host or accepted guest reads the current playback state.
+router.get("/group/state", protect, wrap(async (req, res) => {
+  if (!requireDhun(req, res)) return;
+  const found = findGroupSessionFor(req.user.id);
+  if (!found.session) return res.status(404).json({ message: "Session ended" });
+  found.session.lastActivityAt = Date.now();
+  res.json(Object.assign({ role: found.role }, groupPublicSession(found.session)));
+}));
+
+// What session (if any) am I in?
+router.get("/group/mine", protect, wrap(async (req, res) => {
+  if (!requireDhun(req, res)) return;
+  const found = findGroupSessionFor(req.user.id);
+  if (!found.session) return res.json({ role: null });
+  res.json(Object.assign({ role: found.role }, groupPublicSession(found.session)));
+}));
+
+// Leave (guest) or end (host) the session.
+router.post("/group/leave", protect, wrap(async (req, res) => {
+  if (!requireDhun(req, res)) return;
+  const found = findGroupSessionFor(req.user.id);
+  if (!found.session) return res.json({ ok: true });
+  if (found.role === "host") {
+    groupSessions.delete(found.session.code);
+    for (const [rid, r] of groupRequests.entries()) {
+      if (r.code === found.session.code && r.status === "pending") groupRequests.delete(rid);
+    }
+  } else {
+    found.session.members.delete(String(req.user.id));
+  }
+  res.json({ ok: true });
+}));
+
 module.exports = router;
