@@ -530,6 +530,9 @@ router.post("/group/state", protect, wrap(async (req, res) => {
     dur: Math.max(0, Number(req.body.dur) || 0),
     playing: req.body.playing === true,
     positionMs: Math.max(0, Number(req.body.positionMs) || 0),
+    // v2.65: host scheduled-start time (server ms). Guest waits until this
+    // time to start, so host's 1s delay and guest's network delay cancel out.
+    startAtMs: Number(req.body.startAtMs) || 0,
     updatedAt: Date.now(),
   };
   s.seq++;
