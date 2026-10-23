@@ -394,11 +394,21 @@ function pruneGroupSessions() {
   for (const [code, s] of groupSessions.entries()) {
     const last = Math.max(s.createdAt, s.lastActivityAt || 0, s.state ? s.state.updatedAt : 0);
     if (now - last > GROUP_TTL_MS) {
+      if (s.subscribers) for (const r of s.subscribers) { try { r.end(); } catch (e) {} }
       groupSessions.delete(code);
       for (const [rid, r] of groupRequests.entries()) {
         if (r.code === code && r.status === "pending") groupRequests.delete(rid);
       }
     }
+  }
+}
+
+
+function notifyGroupSubscribers(s) {
+  if (!s.subscribers) return;
+  const payload = "data: " + JSON.stringify(Object.assign({}, groupPublicSession(s))) + "\n\n";
+  for (const res of Array.from(s.subscribers)) {
+    try { res.write(payload); } catch (e) { s.subscribers.delete(res); }
   }
 }
 
@@ -420,7 +430,7 @@ router.post("/group/create", protect, wrap(async (req, res) => {
   const session = {
     code, hostId: String(req.user.id), hostName: groupDisplayName(user),
     createdAt: Date.now(), lastActivityAt: Date.now(),
-    members: new Map(), state: null, seq: 0,
+    members: new Map(), state: null, seq: 0, subscribers: new Set(),
   };
   groupSessions.set(code, session);
   res.json({ code, hostName: session.hostName });
@@ -524,7 +534,8 @@ router.post("/group/state", protect, wrap(async (req, res) => {
   };
   s.seq++;
   s.lastActivityAt = Date.now();
-  res.json({ ok: true, seq: s.seq });
+  notifyGroupSubscribers(s);
+  res.json({ ok: true, seq: s.seq, serverTime: Date.now() });
 }));
 
 // Host or accepted guest reads the current playback state.
@@ -540,12 +551,12 @@ router.get("/group/state", protect, wrap(async (req, res) => {
   if (req.query.wait === "1") {
     const wantSeq = Number(req.query.seq);
     const sleep = ms => new Promise(r => setTimeout(r, ms));
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < 360; i++) {
       const live = findGroupSessionFor(req.user.id);
       if (!live.session) return res.status(404).json({ message: "Session ended" });
       if (Number.isFinite(wantSeq) && live.session.seq !== wantSeq) break;
       if (!Number.isFinite(wantSeq)) break;
-      await sleep(200);
+      await sleep(50);
     }
   }
   const live = findGroupSessionFor(req.user.id);
@@ -553,6 +564,33 @@ router.get("/group/state", protect, wrap(async (req, res) => {
   live.session.lastActivityAt = Date.now();
   res.json(Object.assign({ role: live.role }, groupPublicSession(live.session)));
 }));
+
+
+// v2.64 SSE push stream: guest holds this open, backend pushes every state
+// change instantly (no 200ms poll tick, no new HTTP request per change).
+// Long-poll (/group/state?wait=1) stays as fallback if SSE is blocked.
+router.get("/group/stream", protect, async (req, res) => {
+  if (!requireDhun(req, res)) return;
+  const found = findGroupSessionFor(req.user.id);
+  if (!found.session) return res.status(404).json({ message: "Session ended" });
+  const s = found.session;
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+  res.write("data: " + JSON.stringify(Object.assign({ role: found.role }, groupPublicSession(s))) + "\n\n");
+  if (!s.subscribers) s.subscribers = new Set();
+  s.subscribers.add(res);
+  const hb = setInterval(() => { try { res.write(": ping\n\n"); } catch (e) {} }, 20000);
+  req.on("close", () => { clearInterval(hb); if (s.subscribers) s.subscribers.delete(res); });
+});
+
+// Clock sync: guest measures offset between its clock and server clock.
+router.get("/group/time", protect, (req, res) => {
+  res.json({ serverTime: Date.now() });
+});
 
 // What session (if any) am I in?
 router.get("/group/mine", protect, wrap(async (req, res) => {
@@ -568,6 +606,7 @@ router.post("/group/leave", protect, wrap(async (req, res) => {
   const found = findGroupSessionFor(req.user.id);
   if (!found.session) return res.json({ ok: true });
   if (found.role === "host") {
+    if (found.session.subscribers) for (const r of found.session.subscribers) { try { r.end(); } catch (e) {} }
     groupSessions.delete(found.session.code);
     for (const [rid, r] of groupRequests.entries()) {
       if (r.code === found.session.code && r.status === "pending") groupRequests.delete(rid);
