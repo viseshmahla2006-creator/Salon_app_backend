@@ -208,7 +208,7 @@
 
 <!-- Video stage -->
 <div id="videoStage" class="hidden">
-  <video id="finalVideo" playsinline controls preload="auto"></video>
+  <video id="finalVideo" playsinline controls preload="auto" src="/devi-video.mp4"></video>
   <p id="videoHint">Video chal rahi hai — awaaz ke saath dekhna 🎵</p>
   <div id="afterVideo" class="hidden" style="text-align:center;">
     <div class="line show" style="font-size:24px; font-weight:800; color:#ffb347;">Ab batao… maaf kar diya na? 🥺❤️</div>
@@ -264,17 +264,14 @@
       t.classList.add('hidden');
       const vs = document.getElementById('videoStage');
       vs.classList.remove('hidden');
-      loadFinalVideo().then(v => {
-        const p = v.play();
-        if (p && p.catch) {
-          p.catch(() => {
-            document.getElementById('videoHint').textContent = 'Play button dabao ▶️ — video tumhare liye hai.';
-          });
-        }
-      }).catch(() => {
-        document.getElementById('videoError').classList.remove('hidden');
-        document.getElementById('videoHint').textContent = 'Video load nahi hui — page refresh karke dobara try karo.';
-      });
+      const v = document.getElementById('finalVideo');
+      v.load();
+      const p = v.play();
+      if (p && p.catch) {
+        p.catch(() => {
+          document.getElementById('videoHint').textContent = 'Play button dabao ▶️ — video tumhare liye hai.';
+        });
+      }
     }, 1800);
   }
 
@@ -319,25 +316,6 @@
   document.getElementById('toVideoAfterStill').addEventListener('click', goToVideo);
 
 
-  async function loadFinalVideo() {
-    const v = document.getElementById('finalVideo');
-    if (v.dataset.loaded) return v;
-    document.getElementById('videoHint').textContent = 'Video load ho rahi hai… ✨';
-    let b64 = '';
-    for (let i = 1; i <= 22; i++) {
-      const n = String(i).padStart(2, '0');
-      const r = await fetch('/devi-assets/gf-vid-' + n + '.txt');
-      if (!r.ok) throw new Error('chunk ' + n + ' failed');
-      b64 += (await r.text()).trim();
-    }
-    const bin = atob(b64);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    v.src = URL.createObjectURL(new Blob([bytes], { type: 'video/mp4' }));
-    v.dataset.loaded = '1';
-    document.getElementById('videoHint').textContent = 'Video chal rahi hai — awaaz ke saath dekhna 🎵';
-    return v;
-  }
   const v = document.getElementById('finalVideo');
   v.addEventListener('ended', () => {
     document.getElementById('afterVideo').classList.remove('hidden');
