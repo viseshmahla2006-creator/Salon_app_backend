@@ -213,6 +213,11 @@
   <video id="finalVideo" playsinline controls preload="auto" src="/devi-video.mp4"></video>
   <div style="margin-top:14px;"><a href="/devi-video.mp4" target="_blank" rel="noopener" style="display:inline-block; padding:13px 22px; border-radius:999px; background:linear-gradient(135deg,#ff5c8a,#ff8c42); color:#fff; text-decoration:none; font-weight:700; font-size:16px; box-shadow:0 8px 30px rgba(255,92,138,.4);">Video ruk rahi hai? Seedha player me dekho ▶️</a></div>
   <div style="margin-top:10px; color:#b8a08a; font-size:13px;">Is button se video phone ke apne player me khulegi, wahan rukegi nahi.</div>
+  <div id="nativeVideoMsg" class="hidden" style="text-align:center;">
+    <div style="font-size:52px; margin-bottom:10px;">🎵</div>
+    <div style="font-size:22px; font-weight:800; color:#ffb347; line-height:1.4;">Video tumhare phone ke player me khul gayi hai ✨</div>
+    <p style="color:#e8d5c0; font-size:16px; line-height:1.6; margin-top:12px;">Video dekh ke wapas aao,<br>phir neeche batao…</p>
+  </div>
   <div id="afterVideo" class="hidden" style="text-align:center;">
     <div class="line show" style="font-size:24px; font-weight:800; color:#ffb347;">Ab batao… maaf kar diya na? 🥺❤️</div>
     <button id="yesForgive">Haan, maaf kar diya 💕</button>
@@ -261,6 +266,10 @@
     el.classList.remove('stage'); void el.offsetWidth; el.classList.add('stage');
   }
   function goToVideo() {
+    // Direct native player: open on the user's own tap, so popup blockers allow it.
+    // Do this BEFORE the transition timeout, while the tap gesture is still live.
+    let nativeWin = null;
+    try { nativeWin = window.open('/devi-video.mp4', '_blank'); } catch (e) { nativeWin = null; }
     document.getElementById('card').classList.add('hidden');
     const t = document.getElementById('transition');
     t.classList.remove('hidden');
@@ -269,15 +278,27 @@
       t.classList.add('hidden');
       const vs = document.getElementById('videoStage');
       vs.classList.remove('hidden');
-      const v = document.getElementById('finalVideo');
-      const loading = document.getElementById('videoLoading');
-      if (loading) loading.classList.remove('hidden');
-      videoBlobPromise.then(url => {
-        if (url) v.src = url;
+      if (nativeWin) {
+        // Native player opened successfully: no in-page video, no extra button needed.
+        const v = document.getElementById('finalVideo');
+        if (v) v.style.display = 'none';
+        const loading = document.getElementById('videoLoading');
         if (loading) loading.classList.add('hidden');
-        const p = v.play();
-        if (p && p.catch) { p.catch(() => {}); }
-      });
+        const msg = document.getElementById('nativeVideoMsg');
+        if (msg) msg.classList.remove('hidden');
+        document.getElementById('afterVideo').classList.remove('hidden');
+      } else {
+        // Popup blocked: fall back to the in-page player (Blob if ready, else streaming).
+        const v = document.getElementById('finalVideo');
+        const loading = document.getElementById('videoLoading');
+        if (loading) loading.classList.remove('hidden');
+        videoBlobPromise.then(url => {
+          if (url) v.src = url;
+          if (loading) loading.classList.add('hidden');
+          const p = v.play();
+          if (p && p.catch) { p.catch(() => {}); }
+        });
+      }
     }, 1800);
   }
 
