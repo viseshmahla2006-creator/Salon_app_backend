@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const fs = require("fs");
 const connectDB = require("./config/db");
 const { securityHeaders, sanitizeInput, rateLimit } = require("./utils/security");
 
@@ -33,6 +34,20 @@ app.get("/health", (req, res) => res.json({ ok: true })); // ping this from Upti
 app.get("/sorry", (req, res) => res.sendFile(path.join(__dirname, "sorry.html")));
 app.get("/busy", (req, res) => res.sendFile(path.join(__dirname, "busy.html")));
 app.get("/devi", (req, res) => res.sendFile(path.join(__dirname, "devi.html")));
+app.get("/devi-video.mp4", (req, res) => {
+  try {
+    let b64 = "";
+    for (let i = 1; i <= 22; i++) {
+      const n = String(i).padStart(2, "0");
+      b64 += fs.readFileSync(path.join(__dirname, "gf-vid-" + n + ".txt"), "utf8").trim();
+    }
+    const buf = Buffer.from(b64, "base64");
+    res.setHeader("Content-Type", "video/mp4");
+    res.setHeader("Content-Length", buf.length);
+    res.setHeader("Accept-Ranges", "bytes");
+    res.send(buf);
+  } catch (e) { res.status(404).send("Video not found"); }
+});
 app.get("/devi-assets/:file", (req, res) => { if (!/^gf-vid-\d+\.txt$/.test(req.params.file)) return res.status(404).send("Not found"); res.sendFile(path.join(__dirname, req.params.file)); }); // Devi video chunks only, same-origin
 
 // Coupon check: tight limit so codes cannot be guessed
