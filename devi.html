@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Meri Devi ❤️</title>
+<link rel="preload" as="video" href="/devi-video.mp4" type="video/mp4">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body {
@@ -209,7 +210,6 @@
 <!-- Video stage -->
 <div id="videoStage" class="hidden">
   <video id="finalVideo" playsinline controls preload="auto" src="/devi-video.mp4"></video>
-  <p id="videoHint">Video chal rahi hai — awaaz ke saath dekhna 🎵</p>
   <div id="afterVideo" class="hidden" style="text-align:center;">
     <div class="line show" style="font-size:24px; font-weight:800; color:#ffb347;">Ab batao… maaf kar diya na? 🥺❤️</div>
     <button id="yesForgive">Haan, maaf kar diya 💕</button>
@@ -220,6 +220,7 @@
 </div>
 
 <script>
+  try { document.getElementById('finalVideo').load(); } catch (e) {}
   function spawnBg() {
     const h = document.createElement('div');
     h.className = 'fall';
@@ -265,11 +266,9 @@
       const vs = document.getElementById('videoStage');
       vs.classList.remove('hidden');
       const v = document.getElementById('finalVideo');
-      v.load();
       const p = v.play();
       if (p && p.catch) {
         p.catch(() => {
-          document.getElementById('videoHint').textContent = 'Play button dabao ▶️ — video tumhare liye hai.';
         });
       }
     }, 1800);
@@ -319,7 +318,6 @@
   const v = document.getElementById('finalVideo');
   v.addEventListener('ended', () => {
     document.getElementById('afterVideo').classList.remove('hidden');
-    document.getElementById('videoHint').classList.add('hidden');
   });
   v.addEventListener('error', () => {
     document.getElementById('videoError').classList.remove('hidden');
