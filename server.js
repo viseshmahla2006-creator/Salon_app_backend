@@ -43,8 +43,22 @@ app.get("/devi-video.mp4", (req, res) => {
     }
     const buf = Buffer.from(b64, "base64");
     res.setHeader("Content-Type", "video/mp4");
-    res.setHeader("Content-Length", buf.length);
     res.setHeader("Accept-Ranges", "bytes");
+    const range = req.headers.range;
+    if (range) {
+      const m = /^bytes=(\d*)-(\d*)$/.exec(range);
+      if (m) {
+        const start = m[1] ? parseInt(m[1], 10) : 0;
+        const end = m[2] ? parseInt(m[2], 10) : buf.length - 1;
+        if (start >= 0 && end < buf.length && start <= end) {
+          res.status(206);
+          res.setHeader("Content-Range", "bytes " + start + "-" + end + "/" + buf.length);
+          res.setHeader("Content-Length", end - start + 1);
+          return res.send(buf.slice(start, end + 1));
+        }
+      }
+    }
+    res.setHeader("Content-Length", buf.length);
     res.send(buf);
   } catch (e) { res.status(404).send("Video not found"); }
 });
