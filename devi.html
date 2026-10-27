@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Meri Devi ❤️</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:#1c0f08; color:#fff; min-height:100vh; overflow:hidden;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:22px;
+  }
+  .fall { position:fixed; top:-30px; font-size:22px; opacity:0; animation:fall linear forwards; pointer-events:none; z-index:0; }
+  @keyframes fall {
+    0% { transform:translateY(-30px) rotate(0deg); opacity:0; }
+    10% { opacity:.7; }
+    100% { transform:translateY(110vh) rotate(340deg); opacity:0; }
+  }
+  .card {
+    position:relative; z-index:2; max-width:480px; width:100%;
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,179,71,.35);
+    border-radius:28px; padding:36px 26px 30px;
+    backdrop-filter:blur(14px);
+    box-shadow:0 0 60px rgba(255,140,0,.20), inset 0 0 40px rgba(255,255,255,.03);
+    animation:cardIn .9s ease both;
+  }
+  @keyframes cardIn { from { transform:scale(.85) translateY(30px); opacity:0; } to { transform:scale(1) translateY(0); opacity:1; } }
+  h1 { font-size:32px; line-height:1.25; font-weight:800; }
+  h1 span { color:#ffb347; }
+  p.sub { color:#e8d5c0; font-size:16px; line-height:1.6; margin-top:12px; }
+  .big { font-size:110px; line-height:1; margin:18px 0 6px; cursor:pointer; user-select:none; display:inline-block; }
+  .diya { filter:drop-shadow(0 0 24px rgba(255,179,71,.35)); }
+  .diya.lit { filter:drop-shadow(0 0 34px rgba(255,179,71,.85)); animation:glow 1.2s ease-in-out infinite; }
+  @keyframes glow { 0%,100% { transform:scale(1); } 50% { transform:scale(1.07); } }
+  .tap-hint { color:#ffb347; font-size:15px; margin-bottom:6px; }
+  .line { opacity:0; transform:translateY(14px); transition:all .6s ease; font-size:19px; line-height:1.5; margin-top:14px; }
+  .line.show { opacity:1; transform:translateY(0); }
+  .line.big { font-size:30px; font-weight:800; color:#ffb347; }
+  .line.soft { color:#e8d5c0; font-size:16px; }
+  .hidden { display:none !important; }
+  button {
+    margin-top:18px; border:none; cursor:pointer; font-size:17px; font-weight:700;
+    color:#fff; background:linear-gradient(135deg,#ff5c8a,#ff8c42);
+    padding:15px 26px; border-radius:999px; box-shadow:0 8px 30px rgba(255,92,138,.4);
+  }
+  button:active { transform:scale(.96); }
+  button.ghost { background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.25); box-shadow:none; color:#e8d5c0; }
+  .btnrow { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+  .sig { margin-top:20px; color:#b8a08a; font-size:14px; }
+  .burst { position:fixed; z-index:5; font-size:26px; pointer-events:none; animation:burstUp 1.1s ease-out forwards; }
+  @keyframes burstUp {
+    0% { transform:translate(0,0) scale(.6) rotate(0deg); opacity:1; }
+    100% { transform:translate(var(--dx), -190px) scale(1.3) rotate(40deg); opacity:0; }
+  }
+  /* transition + video */
+  #transition { position:fixed; inset:0; z-index:10; background:radial-gradient(circle at 50% 50%, #ffb347 0%, #1c0f08 70%); display:flex; align-items:center; justify-content:center; flex-direction:column; animation:transIn 1.8s ease both; }
+  @keyframes transIn { from { opacity:0; } to { opacity:1; } }
+  #transition h2 { font-size:34px; color:#fff; text-shadow:0 0 30px rgba(255,179,71,.9); }
+  #videoStage { position:fixed; inset:0; z-index:9; background:#000; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:12px; }
+  #videoStage video { width:100%; max-width:480px; max-height:82vh; border-radius:18px; background:#000; }
+  #videoStage p { margin-top:12px; color:#e8d5c0; font-size:15px; line-height:1.5; }
+  .count { margin-top:12px; font-size:17px; color:#ffb3c8; min-height:24px; }
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <!-- Stage 1: intro -->
+  <div id="stage1">
+    <h1>Meri <span>Devi</span> ❤️</h1>
+    <p class="sub">Tum naraz ho, aur main jaanta hun —<br>ye meri harkaton ki wajah se hua.<br><br>Bada speech nahi. Bas 4 chhote kadam,<br>sirf tumhare liye.</p>
+    <button id="startBtn">Shuru karo 🪔</button>
+    <div class="sig">— Visesh</div>
+  </div>
+
+  <!-- Stage 2: diya -->
+  <div id="stage2" class="hidden">
+    <h1>Pehla kadam 🪔</h1>
+    <p class="sub">Is diye ko chhuo, ise jalao.</p>
+    <div class="big diya" id="diya" role="button" aria-label="Light the diya">🪔</div>
+    <div class="tap-hint" id="diyaHint">Diye pe tap karo 👆</div>
+    <div class="line" id="diyaLine">Ye diya isliye — kyunki tumhare bina sab kuch andhera lagta hai. ✨</div>
+    <button id="toFlower" class="hidden">Aage badho 🌹</button>
+  </div>
+
+  <!-- Stage 3: flower -->
+  <div id="stage3" class="hidden">
+    <h1>Doosra kadam 🌹</h1>
+    <p class="sub">Ab ye phool tumhare liye.</p>
+    <div class="big" id="rose" role="button" aria-label="Tap the rose">🌹</div>
+    <div class="tap-hint" id="roseHint">Phool pe tap karo 👆</div>
+    <div class="line" id="roseLine">Tum meri zindagi ki sabse khoobsurat cheez ho.<br>Mere liye tum devi ho, aur main tumse bahut pyaar karta hun. 💖</div>
+    <button id="toSorry" class="hidden">Aage badho 💌</button>
+  </div>
+
+  <!-- Stage 4: sorry + promise -->
+  <div id="stage4" class="hidden">
+    <h1>Teesra kadam 💌</h1>
+    <div class="line" id="s1">Meri galti thi, main maanta hun.</div>
+    <div class="line" id="s2">Meri harkaton se tumhe dukh pahuncha, uske liye dil se sorry.</div>
+    <div class="line" id="s3">Wada karta hun — tumhe hasana mera kaam hai, rulana nahi.</div>
+    <div class="line big" id="s4">Maaf kar dogi na? 🥺</div>
+    <div class="btnrow hidden" id="sorryBtns">
+      <button id="forgiveBtn">Maaf kar diya 💖</button>
+      <button id="stillBtn" class="ghost">Abhi bhi thodi naraz hun 😤</button>
+    </div>
+    <div class="line soft hidden" id="stillLine">Theek hai, main intezar karunga.<br>Par jaane se pehle ye aakhri cheez dekh lo — ye sirf tumhare liye banayi hai.</div>
+    <button id="toVideoAfterStill" class="hidden">Ye dekh lo ▶️</button>
+  </div>
+</div>
+
+<!-- Transition -->
+<div id="transition" class="hidden"><h2>Tumhare liye… ✨</h2><p class="sub" style="margin-top:10px;">Bas ek pal…</p></div>
+
+<!-- Video stage -->
+<div id="videoStage" class="hidden">
+  <video id="finalVideo" playsinline controls preload="auto" src="https://muse.ai/files/1286217317918429/2086290622004967/qkx539e0n750y3c6npkvzk8b/gf-doodle-bg-v2.mp4"></video>
+  <p id="videoHint">Video chal rahi hai — awaaz ke saath dekhna 🎵</p>
+  <div id="afterVideo" class="hidden" style="text-align:center;">
+    <div class="line show" style="font-size:24px; font-weight:800; color:#ffb347;">Ab batao… maaf kar diya na? 🥺❤️</div>
+    <button id="yesForgive">Haan, maaf kar diya 💕</button>
+    <div class="count" id="count"></div>
+    <div class="sig">— Visesh, hamesha tumhara</div>
+  </div>
+  <p id="videoError" class="hidden">Video load nahi hui — Visesh ko bolo dobara link bheje.</p>
+</div>
+
+<script>
+  function spawnBg() {
+    const h = document.createElement('div');
+    h.className = 'fall';
+    h.textContent = ['🌸','✨','🌹','🪔'][Math.floor(Math.random()*4)];
+    h.style.left = Math.random()*100 + 'vw';
+    h.style.animationDuration = (5 + Math.random()*5) + 's';
+    document.body.appendChild(h);
+    setTimeout(() => h.remove(), 11000);
+  }
+  setInterval(spawnBg, 900); spawnBg();
+
+  function burst(n) {
+    for (let i = 0; i < n; i++) {
+      const b = document.createElement('div');
+      b.className = 'burst';
+      b.textContent = ['❤️','🌸','✨','🌹'][i % 4];
+      b.style.left = '50%'; b.style.top = '42%';
+      b.style.setProperty('--dx', (Math.random()*220 - 110) + 'px');
+      document.body.appendChild(b);
+      setTimeout(() => b.remove(), 1200);
+    }
+  }
+  function show(id) {
+    ['stage1','stage2','stage3','stage4'].forEach(s => document.getElementById(s).classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
+  }
+  function goToVideo() {
+    document.getElementById('card').classList.add('hidden');
+    const t = document.getElementById('transition');
+    t.classList.remove('hidden');
+    burst(24);
+    setTimeout(() => {
+      t.classList.add('hidden');
+      const vs = document.getElementById('videoStage');
+      vs.classList.remove('hidden');
+      const v = document.getElementById('finalVideo');
+      const p = v.play();
+      if (p && p.catch) {
+        p.catch(() => {
+          document.getElementById('videoHint').textContent = 'Play button dabao ▶️ — video tumhare liye hai.';
+        });
+      }
+    }, 1800);
+  }
+
+  document.getElementById('startBtn').addEventListener('click', () => show('stage2'));
+
+  let diyaLit = false;
+  document.getElementById('diya').addEventListener('click', () => {
+    if (diyaLit) return; diyaLit = true;
+    const d = document.getElementById('diya');
+    d.textContent = '🪔🔥'; d.classList.add('lit');
+    document.getElementById('diyaHint').textContent = 'Diya jal gaya ✨';
+    document.getElementById('diyaLine').classList.add('show');
+    document.getElementById('toFlower').classList.remove('hidden');
+    burst(14);
+  });
+  document.getElementById('toFlower').addEventListener('click', () => show('stage3'));
+
+  let roseDone = false;
+  document.getElementById('rose').addEventListener('click', () => {
+    if (roseDone) return; roseDone = true;
+    document.getElementById('roseHint').textContent = 'Phool tumhara hua 🌹';
+    document.getElementById('roseLine').classList.add('show');
+    document.getElementById('toSorry').classList.remove('hidden');
+    burst(18);
+  });
+  document.getElementById('toSorry').addEventListener('click', () => {
+    show('stage4');
+    ['s1','s2','s3','s4'].forEach((id, i) => {
+      setTimeout(() => document.getElementById(id).classList.add('show'), 250 + i*550);
+    });
+    setTimeout(() => document.getElementById('sorryBtns').classList.remove('hidden'), 250 + 4*550);
+  });
+
+  document.getElementById('forgiveBtn').addEventListener('click', goToVideo);
+  document.getElementById('stillBtn').addEventListener('click', () => {
+    document.getElementById('sorryBtns').classList.add('hidden');
+    document.getElementById('stillLine').classList.remove('hidden');
+    document.getElementById('stillLine').classList.add('show');
+    document.getElementById('toVideoAfterStill').classList.remove('hidden');
+  });
+  document.getElementById('toVideoAfterStill').addEventListener('click', goToVideo);
+
+  const v = document.getElementById('finalVideo');
+  v.addEventListener('ended', () => {
+    document.getElementById('afterVideo').classList.remove('hidden');
+    document.getElementById('videoHint').classList.add('hidden');
+  });
+  v.addEventListener('error', () => {
+    document.getElementById('videoError').classList.remove('hidden');
+  });
+  let taps = 0;
+  document.getElementById('yesForgive').addEventListener('click', () => {
+    taps++;
+    document.getElementById('count').textContent = taps === 1 ? 'Maaf kar diya ×1 ❤️' : 'Maaf kar diya ×' + taps + ' ❤️';
+    burst(10);
+  });
+</script>
+</body>
+</html>
