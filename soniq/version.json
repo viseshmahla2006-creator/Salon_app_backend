@@ -1,10 +1,10 @@
 {
-  "versionCode": 102,
-  "versionName": "2.87",
-  "apkUrl": "https://muse.ai/files/1286217317918429/1890082771960068/ioihotl2taam0d2bilrklw9n/Dhun.apk",
+  "versionCode": 103,
+  "versionName": "2.88",
+  "apkUrl": "https://muse.ai/files/1286217317918429/1360189676014557/9gko7nparttniuyndsiqgufs/Dhun.apk",
   "size": "6.4 MB",
-  "notes": "",
-  "betaOnly": false,
+  "notes": "Synced lyrics highlight, better autoplay",
+  "betaOnly": true,
   "betaEmails": [
     "viseshmahla2006@gmail.com"
   ]
