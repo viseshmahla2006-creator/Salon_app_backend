@@ -3,8 +3,18 @@
 // OTP store in dhun.js) — calls do not survive a server restart.
 // Every endpoint requires header X-Boss-Key == process.env.BOSSCALL_KEY.
 const express = require("express");
-const crypto = require("crypto");
 const { wrap } = require("../utils/security");
+
+// NOTE: do NOT use crypto.randomBytes here — on Render's free-tier
+// containers the sync CSPRNG call can block for minutes (low entropy),
+// which hung every valid POST /call while all other endpoints stayed
+// fast. Call ids are only queue identifiers behind the X-Boss-Key auth,
+// so a timestamp + counter + Math.random id is enough and never blocks.
+let callSeq = 0;
+function newCallId() {
+  callSeq += 1;
+  return `c${Date.now().toString(36)}${callSeq.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
 
 const router = express.Router();
 
@@ -42,7 +52,7 @@ router.post("/call", wrap(async (req, res) => {
     return res.status(400).json({ ok: false, message: "title and message are required" });
   }
   const call = {
-    id: crypto.randomBytes(8).toString("hex"),
+    id: newCallId(),
     type,
     title,
     message,
