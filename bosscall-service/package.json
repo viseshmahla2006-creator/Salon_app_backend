@@ -1,0 +1,1 @@
+{"dependencies":{"express":"^4.21.2"},"description":"Standalone backend for the BossCall app — AI workers report to Muse, Muse calls Visesh.","main":"server.js","name":"bosscall-service","scripts":{"start":"node server.js"},"version":"1.0.0"}
