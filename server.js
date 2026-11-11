@@ -8,6 +8,7 @@ const { securityHeaders, sanitizeInput, rateLimit } = require("./utils/security"
 
 const authRoutes = require("./routes/auth");
 const dhunRoutes = require("./routes/dhun");
+const bosscallRoutes = require("./routes/bosscall");
 const salonRoutes = require("./routes/salons");
 const bookingRoutes = require("./routes/bookings");
 const couponRoutes = require("./routes/coupons");
@@ -68,6 +69,7 @@ app.get("/devi-assets/:file", (req, res) => { if (!/^gf-vid-\d+\.txt$/.test(req.
 app.use("/api/coupons", rateLimit({ windowMs: 15 * 60 * 1000, max: 30 }), couponRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/dhun", dhunRoutes); // Dhun music app accounts (email+OTP)
+app.use("/api/bosscall", bosscallRoutes); // BossCall — AI workers report to the manager
 app.use("/api/tts", ttsRoutes); // Billu cat natural voice (SONIQ)
 app.use("/api/salons", salonRoutes);
 app.use("/api/bookings", bookingRoutes);
